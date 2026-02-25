@@ -1,0 +1,96 @@
+{
+  "name": "phonelink",
+  "displayName": "PhoneLink",
+  "description": "Connect to your Android phone via ADB WiFi for debugging — right from VS Code",
+  "version": "0.1.0",
+  "publisher": "dario",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "phonelink.connect",
+        "title": "PhoneLink: Connect to Phone",
+        "icon": "$(device-mobile)"
+      },
+      {
+        "command": "phonelink.disconnect",
+        "title": "PhoneLink: Disconnect Phone"
+      },
+      {
+        "command": "phonelink.showPanel",
+        "title": "PhoneLink: Open Panel",
+        "icon": "$(device-mobile)"
+      },
+      {
+        "command": "phonelink.logcat",
+        "title": "PhoneLink: Open Logcat"
+      },
+      {
+        "command": "phonelink.screenshot",
+        "title": "PhoneLink: Take Screenshot"
+      },
+      {
+        "command": "phonelink.shell",
+        "title": "PhoneLink: Open ADB Shell"
+      },
+      {
+        "command": "phonelink.installApk",
+        "title": "PhoneLink: Install APK"
+      },
+      {
+        "command": "phonelink.screenRecord",
+        "title": "PhoneLink: Screen Record"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "phonelink-sidebar",
+          "title": "PhoneLink",
+          "icon": "$(device-mobile)"
+        }
+      ]
+    },
+    "views": {
+      "phonelink-sidebar": [
+        {
+          "type": "webview",
+          "id": "phonelink.panel",
+          "name": "PhoneLink"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "PhoneLink",
+      "properties": {
+        "phonelink.defaultIp": {
+          "type": "string",
+          "default": "192.168.1.108",
+          "description": "Default phone IP address for quick connect"
+        },
+        "phonelink.defaultPort": {
+          "type": "number",
+          "default": 5555,
+          "description": "Default ADB TCP port"
+        },
+        "phonelink.adbPath": {
+          "type": "string",
+          "default": "adb",
+          "description": "Path to ADB executable (if not in PATH)"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0"
+  }
+}
