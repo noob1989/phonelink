@@ -1,6 +1,6 @@
 const vscode = require('vscode');
-const AdbManager = require('./src/adbManager');
-const PhoneLinkViewProvider = require('./src/phoneLinkViewProvider');
+const AdbManager = require('./src/adb/index');
+const PhoneLinkViewProvider = require('./src/views/phoneLinkViewProvider');
 
 /** @type {AdbManager} */
 let adbManager;
