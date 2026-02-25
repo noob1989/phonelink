@@ -29,7 +29,7 @@ If you've never connected via WiFi before:
 3. Unplug USB
 4. Use PhoneLink to connect via IP
 
-If you've connected before (like you have), just enter your phone's IP!
+If you've connected before, just enter your phone's IP!
 
 > **Android 11+**: You can also use the built-in Wireless Debugging feature in Developer Options — no USB needed.
 
