@@ -4,6 +4,10 @@
   "description": "Connect to your Android phone via ADB WiFi or USB — right from VS Code & Antigravity",
   "version": "0.1.0",
   "publisher": "dario",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noob1989/phonelink"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
