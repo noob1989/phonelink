@@ -1,15 +1,17 @@
 # PhoneLink 📱
 
-Connect to your Android phone via ADB WiFi — right from VS Code. Manage your device, take screenshots, record your screen, install APKs, and more, all without leaving your editor.
+Connect to your Android phone via ADB WiFi or USB — right from VS Code. Manage your device, take screenshots, record your screen, install APKs, control power settings, and more, all without leaving your editor.
 
 ## Features
 
 - **📱 Status Bar Icon** — Shows connection status at a glance (green when connected)
 - **Sidebar Panel** — Beautiful webview UI for managing your phone connection
-- **Quick Connect** — Enter your phone's IP and connect instantly
+- **⚡ USB & WiFi** — Connect via USB instantly or wirelessly via IP
 - **Device Info** — See model, Android version, battery level, and resolution
 - **📸 Screenshot** — Capture screenshots with one click
 - **🎥 Screen Record** — Record your phone screen (up to 180 seconds)
+- **☀️ Wake / Unlock** — Remotely wake and unlock your device screen
+- **🔋 Stay Awake** — Toggle keeping your screen on while plugged in
 - **📋 Logcat** — Open a live logcat terminal for debugging
 - **💻 ADB Shell** — Open an interactive ADB shell
 - **📦 Install APK** — Install APKs directly from your file explorer
@@ -43,9 +45,9 @@ Then press `F5` in VS Code to launch the Extension Development Host with PhoneLi
 
 ## Quick Start
 
-1. **First time?** Connect your phone via USB and run `adb tcpip 5555` in a terminal, then unplug.
-2. Open the **PhoneLink** panel from the sidebar (phone icon)
-3. Enter your phone's **IP address** and hit connect
+1. Open the **PhoneLink** panel from the sidebar (phone icon)
+2. **USB:** Plug in your phone and click **Scan for Devices**
+3. **WiFi:** Connect via USB once, run `adb tcpip 5555`, unplug, and enter your IP
 4. You're in! Use the panel buttons for screenshots, recording, shell, and more.
 
 > **Android 11+**: You can skip the USB step entirely — use the built-in **Wireless Debugging** feature in Developer Options.
@@ -90,7 +92,7 @@ Make sure ADB is installed and in your system PATH. You can also set the full pa
 - Try re-running `adb tcpip 5555` with your phone connected via USB
 
 ### Device disconnects randomly
-- WiFi ADB can drop when the phone goes to sleep — keep the screen on or use a "stay awake" developer option
+- WiFi ADB can drop when the phone goes to sleep — use the new **Stay Awake** toggle in the panel to prevent this!
 - Reconnect using the sidebar panel or `PhoneLink: Connect to Phone`
 
 ### "Device unauthorized"
