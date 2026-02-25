@@ -27,6 +27,20 @@ class PhoneLinkViewProvider {
                     }
                     break;
                 }
+                case 'connectUsb': {
+                    this._postMessage({ command: 'connectingUsb' });
+                    const result = await this._adbManager.connectUsb(message.serial);
+                    this._postMessage({ command: 'connectResult', ...result });
+                    if (result.success) {
+                        this._postMessage({ command: 'deviceInfo', info: this._adbManager.deviceInfo });
+                    }
+                    break;
+                }
+                case 'scanDevices': {
+                    const devices = await this._adbManager.getDevices();
+                    this._postMessage({ command: 'deviceList', devices });
+                    break;
+                }
                 case 'disconnect': {
                     await this._adbManager.disconnect();
                     this._postMessage({ command: 'disconnected' });
@@ -43,6 +57,19 @@ class PhoneLinkViewProvider {
                 }
                 case 'screenRecord': {
                     this._adbManager.startScreenRecord(message.duration || 30);
+                    break;
+                }
+                case 'wakeScreen': {
+                    await this._adbManager.wakeScreen();
+                    vscode.window.showInformationMessage('☀️ Wake signal sent');
+                    break;
+                }
+                case 'toggleStayAwake': {
+                    const result = await this._adbManager.toggleStayAwake();
+                    this._postMessage({ command: 'actionStatus', action: 'stayAwake', status: result.success ? 'done' : 'error', message: result.message });
+                    if (result.success) {
+                        vscode.window.showInformationMessage(`🔋 ${result.message}`);
+                    }
                     break;
                 }
                 case 'logcat': {
@@ -171,11 +198,14 @@ class PhoneLinkViewProvider {
                 }
                 case 'getState': {
                     const config = vscode.workspace.getConfiguration('phonelink');
+                    // Also scan for USB devices on initial load
+                    const devices = await this._adbManager.getDevices();
                     this._postMessage({
                         command: 'state',
                         connected: this._adbManager.connected,
                         deviceInfo: this._adbManager.deviceInfo,
-                        savedIp: config.get('defaultIp') || ''
+                        savedIp: config.get('defaultIp') || '',
+                        devices: devices
                     });
                     break;
                 }
@@ -680,6 +710,100 @@ class PhoneLinkViewProvider {
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+
+        /* ============ TABS & USB ============ */
+        .connect-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+            background: rgba(0,0,0,0.15);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .connect-tab {
+            flex: 1;
+            padding: 6px 0;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .connect-tab:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+        }
+
+        .connect-tab.active {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+
+        .usb-device-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+            border-radius: 6px;
+        }
+
+        .usb-empty {
+            text-align: center;
+            padding: 12px 0;
+            font-size: 11px;
+            color: var(--text-dim);
+            background: rgba(0,0,0,0.1);
+            border-radius: 6px;
+            border: 1px dashed var(--border);
+        }
+
+        .usb-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .usb-item:hover {
+            background: rgba(124, 77, 255, 0.1);
+            border-color: rgba(124, 77, 255, 0.3);
+            transform: translateX(2px);
+        }
+
+        .usb-item-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .usb-item-sub {
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: monospace;
+        }
+
+        .usb-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -691,14 +815,22 @@ class PhoneLinkViewProvider {
         </div>
         <div class="status-text">
             <div class="status-title" id="statusTitle">Not Connected</div>
-            <div class="status-subtitle" id="statusSubtitle">Enter port from Wireless Debugging</div>
+            <div class="status-subtitle" id="statusSubtitle">Enter IP or plug in via USB</div>
         </div>
     </div>
 
     <!-- CONNECT SECTION -->
     <div class="section" id="connectSection">
         <div class="section-title">Connection</div>
-        <div class="connect-form">
+
+        <!-- Connection Mode Tabs -->
+        <div class="connect-tabs">
+            <button class="connect-tab active" id="tabWifi" onclick="switchTab('wifi')">📶 WiFi</button>
+            <button class="connect-tab" id="tabUsb" onclick="switchTab('usb')">🔌 USB</button>
+        </div>
+
+        <!-- WiFi connect form -->
+        <div class="connect-form" id="wifiForm">
             <div class="input-row">
                 <div class="input-group">
                     <label>IP Address</label>
@@ -712,10 +844,21 @@ class PhoneLinkViewProvider {
             <button class="btn btn-primary btn-full" id="connectBtn" onclick="handleConnect()">
                 ⚡ Connect
             </button>
-            <button class="btn btn-danger btn-full hidden" id="disconnectBtn" onclick="handleDisconnect()">
-                Disconnect
+        </div>
+
+        <!-- USB device list -->
+        <div class="connect-form hidden" id="usbForm">
+            <div id="usbDeviceList" class="usb-device-list">
+                <div class="usb-empty">Click scan to find USB devices</div>
+            </div>
+            <button class="btn btn-primary btn-full" id="scanBtn" onclick="handleScan()">
+                🔍 Scan for Devices
             </button>
         </div>
+
+        <button class="btn btn-danger btn-full hidden" id="disconnectBtn" onclick="handleDisconnect()">
+            Disconnect
+        </button>
     </div>
 
     <!-- PAIR SECTION (collapsible) -->
@@ -763,8 +906,9 @@ class PhoneLinkViewProvider {
                 <div class="info-value" id="infoResolution">—</div>
             </div>
             <div class="info-card">
-                <div class="info-label">IP</div>
+                <div class="info-label">IP / Serial</div>
                 <div class="info-value" id="infoIp">—</div>
+            </div>
             </div>
         </div>
     </div>
@@ -780,6 +924,18 @@ class PhoneLinkViewProvider {
             <button class="action-btn" onclick="handleAction('screenRecord')" id="btnRecord">
                 <span class="action-icon">🎬</span>
                 <span class="action-label">Record</span>
+            </button>
+        </div>
+
+        <div class="section-title" style="margin-top:14px">Power & Display</div>
+        <div class="actions-grid">
+            <button class="action-btn" onclick="handleAction('wakeScreen')">
+                <span class="action-icon">☀️</span>
+                <span class="action-label">Wake / Unlock</span>
+            </button>
+            <button class="action-btn" onclick="handleAction('toggleStayAwake')">
+                <span class="action-icon">🔋</span>
+                <span class="action-label">Toggle Stay Awake</span>
             </button>
         </div>
 
@@ -852,6 +1008,13 @@ class PhoneLinkViewProvider {
         const pairPortInput = document.getElementById('pairPortInput');
         const pairSection = document.getElementById('pairSection');
 
+        const tabWifi = document.getElementById('tabWifi');
+        const tabUsb = document.getElementById('tabUsb');
+        const wifiForm = document.getElementById('wifiForm');
+        const usbForm = document.getElementById('usbForm');
+        const usbDeviceList = document.getElementById('usbDeviceList');
+        const scanBtn = document.getElementById('scanBtn');
+
         // Request initial state
         vscode.postMessage({ command: 'getState' });
 
@@ -889,6 +1052,32 @@ class PhoneLinkViewProvider {
             vscode.postMessage({ command: 'connect', ip, port: parseInt(port) });
         }
 
+        function switchTab(tab) {
+            if (tab === 'wifi') {
+                tabWifi.classList.add('active');
+                tabUsb.classList.remove('active');
+                wifiForm.classList.remove('hidden');
+                usbForm.classList.add('hidden');
+            } else {
+                tabUsb.classList.add('active');
+                tabWifi.classList.remove('active');
+                usbForm.classList.remove('hidden');
+                wifiForm.classList.add('hidden');
+                handleScan(); // auto-scan when switching to USB
+            }
+        }
+
+        function handleScan() {
+            scanBtn.innerHTML = '<span class="loading-spinner"></span> Scanning...';
+            scanBtn.disabled = true;
+            usbDeviceList.innerHTML = '<div class="usb-empty">Scanning for devices...</div>';
+            vscode.postMessage({ command: 'scanDevices' });
+        }
+
+        function connectUsb(serial) {
+            vscode.postMessage({ command: 'connectUsb', serial });
+        }
+
         function handlePair() {
             const ip = ipInput.value.trim() || '192.168.1.108';
             const pairPort = pairPortInput.value.trim();
@@ -922,7 +1111,10 @@ class PhoneLinkViewProvider {
         function setConnected(deviceInfo) {
             statusHeader.classList.add('connected');
             statusTitle.textContent = deviceInfo?.brand ? deviceInfo.brand + ' ' + (deviceInfo.model || '') : 'Connected';
-            statusSubtitle.textContent = deviceInfo?.ip ? 'Connected • ' + deviceInfo.ip : 'Connected via WiFi';
+            const connType = deviceInfo?.connectionType === 'usb' ? 'USB' : 'WiFi';
+            statusSubtitle.textContent = deviceInfo?.ip 
+                ? 'Connected via ' + connType + ' • ' + deviceInfo.ip 
+                : 'Connected via ' + connType;
             
             connectBtn.classList.add('hidden');
             disconnectBtn.classList.remove('hidden');
@@ -938,14 +1130,14 @@ class PhoneLinkViewProvider {
                 document.getElementById('infoAndroid').textContent = 'v' + (deviceInfo.androidVersion || '?') + ' (SDK ' + (deviceInfo.sdkLevel || '?') + ')';
                 document.getElementById('infoBattery').textContent = deviceInfo.battery || 'N/A';
                 document.getElementById('infoResolution').textContent = deviceInfo.resolution || 'N/A';
-                document.getElementById('infoIp').textContent = deviceInfo.ip || 'N/A';
+                document.getElementById('infoIp').textContent = deviceInfo.ip || deviceInfo.serial || 'N/A';
             }
         }
 
         function setDisconnected() {
             statusHeader.classList.remove('connected');
             statusTitle.textContent = 'Not Connected';
-            statusSubtitle.textContent = 'Enter port from Wireless Debugging';
+            statusSubtitle.textContent = 'Enter IP or plug in via USB';
             
             connectBtn.classList.remove('hidden');
             disconnectBtn.classList.add('hidden');
@@ -970,6 +1162,32 @@ class PhoneLinkViewProvider {
             }, 3000);
         }
 
+        function renderUsbDevices(devices) {
+            const list = document.getElementById('usbDeviceList');
+            if (!devices || devices.length === 0) {
+                list.innerHTML = '<div class="usb-empty">No devices found. Ensure USB debugging is on.</div>';
+                return;
+            }
+
+            let html = '';
+            devices.forEach(d => {
+                const bg = d.status === 'device' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 171, 64, 0.2)';
+                const color = d.status === 'device' ? 'var(--success)' : 'var(--warning)';
+                const name = d.info ? d.info.replace(/model:/g, '').replace(/device:/g, '') : 'Unknown Device';
+                
+                html += '<div class="usb-item" onclick="connectUsb(\\'' + d.id + '\\')">' +
+                        '<div>' +
+                            '<div class="usb-item-title">' + name + '</div>' +
+                            '<div class="usb-item-sub">' + d.id + '</div>' +
+                        '</div>' +
+                        '<div class="usb-badge" style="background: ' + bg + '; color: ' + color + '">' +
+                            d.status +
+                        '</div>' +
+                    '</div>';
+            });
+            list.innerHTML = html;
+        }
+
         // Handle messages from extension
         window.addEventListener('message', (event) => {
             const msg = event.data;
@@ -981,6 +1199,19 @@ class PhoneLinkViewProvider {
                     if (msg.connected) {
                         setConnected(msg.deviceInfo);
                     }
+                    if (msg.devices) {
+                        renderUsbDevices(msg.devices);
+                    }
+                    break;
+                case 'deviceList':
+                    scanBtn.innerHTML = '🔍 Scan for Devices';
+                    scanBtn.disabled = false;
+                    renderUsbDevices(msg.devices);
+                    break;
+                case 'connectingUsb':
+                    scanBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
+                    scanBtn.disabled = true;
+                    Array.from(document.querySelectorAll('.usb-item')).forEach(el => el.style.opacity = '0.5');
                     break;
                 case 'connectResult':
                     if (msg.success) {
@@ -988,6 +1219,8 @@ class PhoneLinkViewProvider {
                     } else {
                         connectBtn.innerHTML = '⚡ Connect';
                         connectBtn.disabled = false;
+                        scanBtn.innerHTML = '🔍 Scan for Devices';
+                        scanBtn.disabled = false;
                         showToast(msg.message || 'Connection failed', 'error');
                     }
                     break;

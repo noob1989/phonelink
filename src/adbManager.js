@@ -9,6 +9,8 @@ class AdbManager {
         this._deviceInfo = null;
         this._currentIp = '';
         this._currentPort = 5555;
+        this._deviceSerial = ''; // USB serial number
+        this._connectionType = ''; // 'wifi' or 'usb'
         this._onStatusChanged = new vscode.EventEmitter();
         this.onStatusChanged = this._onStatusChanged.event;
         this._logcatTerminal = null;
@@ -18,6 +20,7 @@ class AdbManager {
     get connected() { return this._connected; }
     get deviceInfo() { return this._deviceInfo; }
     get currentIp() { return this._currentIp; }
+    get connectionType() { return this._connectionType; }
 
     _getAdbPath() {
         const config = vscode.workspace.getConfiguration('phonelink');
@@ -25,6 +28,9 @@ class AdbManager {
     }
 
     _getDeviceArg() {
+        if (this._connectionType === 'usb' && this._deviceSerial) {
+            return `-s ${this._deviceSerial}`;
+        }
         if (this._currentIp && this._currentPort) {
             return `-s ${this._currentIp}:${this._currentPort}`;
         }
@@ -49,6 +55,8 @@ class AdbManager {
         try {
             this._currentIp = ip;
             this._currentPort = port;
+            this._deviceSerial = '';
+            this._connectionType = 'wifi';
 
             const result = await this._exec(`connect ${ip}:${port}`, { useDevice: false });
 
@@ -61,6 +69,34 @@ class AdbManager {
                 return { success: false, message: result };
             }
         } catch (err) {
+            return { success: false, message: err.message };
+        }
+    }
+
+    async connectUsb(serial) {
+        try {
+            this._deviceSerial = serial;
+            this._currentIp = '';
+            this._currentPort = 5555;
+            this._connectionType = 'usb';
+
+            // Verify the device is actually available
+            const devices = await this.getDevices();
+            const found = devices.find(d => d.id === serial && d.status === 'device');
+
+            if (found) {
+                this._connected = true;
+                await this._fetchDeviceInfo();
+                this._onStatusChanged.fire({ connected: true, deviceInfo: this._deviceInfo });
+                return { success: true, message: `Connected to ${serial} via USB` };
+            } else {
+                this._deviceSerial = '';
+                this._connectionType = '';
+                return { success: false, message: `Device ${serial} not found or not authorized` };
+            }
+        } catch (err) {
+            this._deviceSerial = '';
+            this._connectionType = '';
             return { success: false, message: err.message };
         }
     }
@@ -87,16 +123,20 @@ class AdbManager {
 
     async disconnect() {
         try {
-            if (this._currentIp) {
+            if (this._connectionType === 'wifi' && this._currentIp) {
                 await this._exec(`disconnect ${this._currentIp}:${this._currentPort}`, { useDevice: false });
             }
             this._connected = false;
             this._deviceInfo = null;
+            this._deviceSerial = '';
+            this._connectionType = '';
             this._onStatusChanged.fire({ connected: false });
             return { success: true, message: 'Disconnected' };
         } catch (err) {
             this._connected = false;
             this._deviceInfo = null;
+            this._deviceSerial = '';
+            this._connectionType = '';
             this._onStatusChanged.fire({ connected: false });
             return { success: true, message: 'Disconnected' };
         }
@@ -107,8 +147,9 @@ class AdbManager {
             const result = await this._exec('devices', { useDevice: false });
             const lines = result.split('\n').filter(l => l.includes('device') && !l.includes('List'));
 
-            if (lines.length > 0 && this._currentIp) {
-                const isConnected = lines.some(l => l.includes(this._currentIp));
+            const identifier = this._connectionType === 'usb' ? this._deviceSerial : this._currentIp;
+            if (lines.length > 0 && identifier) {
+                const isConnected = lines.some(l => l.includes(identifier));
                 if (isConnected !== this._connected) {
                     this._connected = isConnected;
                     if (isConnected) {
@@ -173,10 +214,11 @@ class AdbManager {
                 battery: batteryLevel,
                 resolution: res,
                 serial: serialNo,
-                ip: this._currentIp
+                ip: this._currentIp,
+                connectionType: this._connectionType
             };
         } catch (err) {
-            this._deviceInfo = { model: 'Unknown Device', brand: 'Unknown', ip: this._currentIp };
+            this._deviceInfo = { model: 'Unknown Device', brand: 'Unknown', ip: this._currentIp, connectionType: this._connectionType };
         }
     }
 
@@ -279,12 +321,54 @@ class AdbManager {
         }
     }
 
+    async wakeScreen() {
+        try {
+            await this._exec('shell input keyevent 224'); // KEYCODE_WAKEUP
+            // Small delay then unlock (KEYCODE_MENU)
+            setTimeout(() => {
+                this._exec('shell input keyevent 82').catch(() => { });
+            }, 300);
+            return { success: true };
+        } catch (err) {
+            return { success: false, message: err.message };
+        }
+    }
+
+    async toggleStayAwake() {
+        try {
+            const result = await this._exec('shell settings get global stay_on_while_plugged_in');
+            const current = parseInt(result.trim());
+
+            if (isNaN(current) || current === 0) {
+                // Set to stay awake while charging (AC(1) + USB(2) + Wireless(4) = 7)
+                await this._exec('shell settings put global stay_on_while_plugged_in 7');
+                return { success: true, message: 'Stay awake enabled' };
+            } else {
+                // Disable
+                await this._exec('shell settings put global stay_on_while_plugged_in 0');
+                return { success: true, message: 'Stay awake disabled' };
+            }
+        } catch (err) {
+            return { success: false, message: err.message };
+        }
+    }
+
+    _getDeviceArgs() {
+        if (this._connectionType === 'usb' && this._deviceSerial) {
+            return ['-s', this._deviceSerial];
+        }
+        if (this._currentIp) {
+            return ['-s', `${this._currentIp}:${this._currentPort}`];
+        }
+        return [];
+    }
+
     openLogcat(filter = '') {
         if (this._logcatTerminal) {
             this._logcatTerminal.dispose();
         }
         const adb = this._getAdbPath();
-        const deviceArgs = this._currentIp ? ['-s', `${this._currentIp}:${this._currentPort}`] : [];
+        const deviceArgs = this._getDeviceArgs();
         this._logcatTerminal = vscode.window.createTerminal({
             name: '📱 Logcat',
             shellPath: adb,
@@ -298,7 +382,7 @@ class AdbManager {
             this._shellTerminal.dispose();
         }
         const adb = this._getAdbPath();
-        const deviceArgs = this._currentIp ? ['-s', `${this._currentIp}:${this._currentPort}`] : [];
+        const deviceArgs = this._getDeviceArgs();
         this._shellTerminal = vscode.window.createTerminal({
             name: '📱 ADB Shell',
             shellPath: adb,
