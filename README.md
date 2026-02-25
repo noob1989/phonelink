@@ -1,6 +1,16 @@
 # PhoneLink 📱
 
-Connect to your Android phone via ADB WiFi or USB — right from VS Code. Manage your device, take screenshots, record your screen, install APKs, control power settings, and more, all without leaving your editor.
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![VS Code](https://img.shields.io/badge/VS%20Code-1.85%2B-007ACC?logo=visualstudiocode)
+![Antigravity](https://img.shields.io/badge/Antigravity-compatible-blueviolet)
+![Android](https://img.shields.io/badge/Android-USB%20%26%20WiFi-3DDC84?logo=android&logoColor=white)
+
+> **Works with both [VS Code](https://code.visualstudio.com/) and [Antigravity](https://antigravity.dev/)!**
+
+Connect to your Android phone via ADB WiFi or USB — right from your editor. Manage your device, take screenshots, record your screen, install APKs, control power settings, and more, all without leaving your coding environment.
+
+**No Android Studio needed.** Whether you're a seasoned developer or just getting started with code vibing in Antigravity, PhoneLink puts your Android device right in your sidebar. Grab screenshots, check logcat, install APKs — all in one click.
 
 ## Features
 
@@ -18,12 +28,12 @@ Connect to your Android phone via ADB WiFi or USB — right from VS Code. Manage
 
 ## Installation
 
-PhoneLink is not yet on the VS Code Marketplace. You can install it manually:
+PhoneLink is not yet on the VS Code Marketplace. You can install it manually in **VS Code** or **Antigravity**:
 
 ### From `.vsix` file
 
 1. Download the latest `.vsix` from [Releases](https://github.com/noob1989/phonelink/releases)
-2. In VS Code, open the Command Palette (`Ctrl+Shift+P`)
+2. Open the Command Palette (`Ctrl+Shift+P`)
 3. Run **Extensions: Install from VSIX...**
 4. Select the downloaded `.vsix` file
 
@@ -35,13 +45,13 @@ cd phonelink
 npm install
 ```
 
-Then press `F5` in VS Code to launch the Extension Development Host with PhoneLink loaded.
+Then press `F5` in VS Code / Antigravity to launch the Extension Development Host with PhoneLink loaded.
 
 ## Prerequisites
 
 1. **ADB** must be installed and available in your PATH (or set the path in extension settings)
 2. **USB Debugging** must be enabled on your phone ([how to enable](https://developer.android.com/studio/debug/dev-options))
-3. Your phone and PC must be on the **same WiFi network**
+3. **For WiFi mode only:** Your phone and PC must be on the **same WiFi network**
 
 ## Quick Start
 
@@ -86,22 +96,39 @@ Make sure ADB is installed and in your system PATH. You can also set the full pa
 - **Windows**: ADB comes with [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools). Download, extract, and add the folder to your PATH.
 - **macOS/Linux**: `brew install android-platform-tools` or download from the link above.
 
-### Connection times out
+### Connection times out (WiFi mode)
 - Make sure your phone and PC are on the **same WiFi network**
 - Check if your firewall is blocking port `5555`
 - Try re-running `adb tcpip 5555` with your phone connected via USB
 
 ### Device disconnects randomly
-- WiFi ADB can drop when the phone goes to sleep — use the new **Stay Awake** toggle in the panel to prevent this!
+- WiFi ADB can drop when the phone goes to sleep — use the **Stay Awake** toggle in the panel to prevent this!
 - Reconnect using the sidebar panel or `PhoneLink: Connect to Phone`
 
 ### "Device unauthorized"
 - Check your phone for an **"Allow USB debugging?"** popup and tap **Allow**
 - If the popup doesn't appear, revoke USB debugging authorizations in Developer Options and reconnect
 
+## Roadmap
+
+Planned features for future releases:
+
+- 🛒 **VS Code Marketplace** — Publish to the Marketplace for one-click install
+- 📂 **File Explorer** — Browse and transfer files to/from your device
+- 🔔 **Notification Mirroring** — See phone notifications in VS Code
+- 📱 **Multi-Device** — Manage multiple connected devices simultaneously
+- 🪞 **Screen Mirror** — Live screen mirroring in the sidebar
+
+Have an idea? [Open an issue!](https://github.com/noob1989/phonelink/issues)
+
 ## Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to open an [issue](https://github.com/noob1989/phonelink/issues) or submit a pull request.
+
+## Built With
+
+- 🤖 Built with the help of **Antigravity** AI coding assistant
+- ⚡ Powered by the **VS Code Extension API** & **Android Debug Bridge (ADB)**
 
 ## License
 

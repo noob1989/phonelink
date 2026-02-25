@@ -196,7 +196,7 @@ function activate(context) {
 
     // Poll connection status every 10 seconds
     pollingInterval = setInterval(async () => {
-        if (adbManager.currentIp) {
+        if (adbManager.currentIp || adbManager.connectionType) {
             await adbManager.checkConnection();
         }
     }, 10000);

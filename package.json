@@ -1,7 +1,7 @@
 {
   "name": "phonelink",
   "displayName": "PhoneLink",
-  "description": "Connect to your Android phone via ADB WiFi for debugging — right from VS Code",
+  "description": "Connect to your Android phone via ADB WiFi or USB — right from VS Code & Antigravity",
   "version": "0.1.0",
   "publisher": "dario",
   "engines": {
@@ -9,6 +9,18 @@
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "android",
+    "adb",
+    "phone",
+    "usb",
+    "wifi",
+    "screenshot",
+    "screen-record",
+    "antigravity",
+    "vscode",
+    "debugging"
   ],
   "activationEvents": [
     "onStartupFinished"
